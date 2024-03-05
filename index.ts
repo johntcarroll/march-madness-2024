@@ -1,12 +1,12 @@
 // src/index.js
 import express from "express";
 import dotenv from "dotenv";
-import { getTeams } from "./src/server/getTeams";
-import { getTeam } from "./src/server/getTeam";
-import { postTeam } from "./src/server/postTeam";
-import { connectToMongo, disconnectFromMongo } from "./src/server/mongoUtils";
-import { loggerConnect } from "./src/server/logger";
-import { handleApiError } from "./src/server/globalErrorHandler";
+import { getTeams } from "./src/getTeams";
+import { getTeam } from "./src/getTeam";
+import { postTeam } from "./src/postTeam";
+import { connectToMongo, disconnectFromMongo } from "./src/mongoUtils";
+import { loggerConnect } from "./src/logger";
+import { handleApiError } from "./src/globalErrorHandler";
 dotenv.config();
 
 const app = express();
