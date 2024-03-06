@@ -2,8 +2,8 @@
 // the kenpom team name is the main key for the table, other data sources must map to the team name
 // key will be the kenpom team name without spaces or special characters, all lowercase
 import { load } from "cheerio";
-import { MongoClient, Filter, ObjectId } from "mongodb";
-import { findBestMatch } from "../src/server/stringSimilarity";
+import { MongoClient, ObjectId } from "mongodb";
+import { findBestMatch } from "../src/stringSimilarity";
 const rankingsDataFixes = [
   { team: "N Carolina", manual: "northcarolina" },
   { team: "Wash State", manual: "washingtonst" },
@@ -73,6 +73,7 @@ const rankingsDataFixes = [
 const mongoClient = new MongoClient("mongodb://localhost:27017");
 
 interface rankingsDataTeam {
+  seed: number;
   oddsToAdvance_64: number;
   oddsToAdvance_32: number;
   oddsToAdvance_16: number;
@@ -108,10 +109,10 @@ interface kenpomDataTeam {
 interface exportDataStructure extends rankingsDataTeam, kenpomDataTeam {
   _id?: ObjectId;
   trOriginalTeamName: string;
-  seed?: number | null;
   region?: string | null;
   areLive: boolean;
   owner_id?: ObjectId | null;
+  playin: boolean;
 }
 
 const getDataFromKenpom = async (): Promise<Array<kenpomDataTeam>> => {
@@ -174,6 +175,7 @@ const getDataFromTeamRankings = async (): Promise<Array<rankingsDataTeam>> => {
     const teamName = $(row).find("td:nth-child(3)").find("a").text().trim();
     teamData.push({
       team: teamName,
+      seed: Number($(row).find("td:nth-child(1)").text()) || null,
       oddsToAdvance_64:
         Number($(row).find("td:nth-child(6)").text().replace("%", "")) / 100,
       oddsToAdvance_32:
@@ -225,6 +227,7 @@ const mergeDataSources = (
       throw "Could not find rankings match for " + kpTeam.id;
     }
     const matchingRTeamData = {
+      seed: rankingsMatch.seed, // remove this after selection sunday
       trOriginalTeamName: rankingsMatch.team,
       oddsToAdvance_64: rankingsMatch.oddsToAdvance_64,
       oddsToAdvance_32: rankingsMatch.oddsToAdvance_32,
@@ -238,10 +241,11 @@ const mergeDataSources = (
       ...kpTeam,
       ...matchingRTeamData,
       _id: new ObjectId(),
-      seed: null,
       region: null,
       areLive: false,
       owner_id: null,
+      playin: false,
+      // seed: null, // add this after selection sunday
     };
   });
 };
@@ -267,6 +271,45 @@ const mongoSync = async (teamData: exportDataStructure[]) => {
     }
   }
 };
+/**
+ * @param  {exportDataStructure[]} data
+ */
+const simulateRegions = (data: exportDataStructure[]) => {
+  const normal_seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14, 15];
+  const five_team_seeds = [11, 12];
+  for (const seed of normal_seeds) {
+    const teams = data.filter((team) => team.seed == seed);
+    if (teams.length !== 4) throw "there was an error";
+    teams[0].region = "North";
+    teams[1].region = "East";
+    teams[2].region = "South";
+    teams[3].region = "West";
+  }
+
+  for (const seed of five_team_seeds) {
+    const teams = data.filter((team) => team.seed == seed);
+    if (teams.length !== 5) throw "there was an error";
+    teams[0].region = "North";
+    teams[1].region = "East";
+    teams[2].region = "South";
+    teams[3].region = "West";
+    teams[3].playin = true;
+    teams[4].region = seed == 11 ? "West" : "East";
+    teams[4].playin = true;
+  }
+  const teams = data.filter((team) => team.seed == 16);
+  if (teams.length !== 6) throw "there was an error";
+  teams[0].region = "North";
+  teams[1].region = "East";
+  teams[2].region = "South";
+  teams[3].region = "West";
+  teams[3].playin = true;
+  teams[4].region = "North";
+  teams[4].playin = true;
+  teams[5].region = "South";
+  teams[5].playin = true;
+  return data;
+};
 
 const main = async () => {
   try {
@@ -277,7 +320,8 @@ const main = async () => {
       kenpomData
     );
     const combinedData = mergeDataSources(kenpomData, rankingsDataWithIds);
-    await mongoSync(combinedData);
+    const simulatedData = simulateRegions(combinedData); // turn this off after selection sunday
+    await mongoSync(simulatedData);
   } catch (e) {
     console.log("An Error Occured: ", e);
   } finally {

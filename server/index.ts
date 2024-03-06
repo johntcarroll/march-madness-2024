@@ -1,6 +1,7 @@
 // src/index.js
 import express from "express";
 import dotenv from "dotenv";
+import cors from "cors";
 import { getTeams } from "./src/getTeams";
 import { getTeam } from "./src/getTeam";
 import { postTeam } from "./src/postTeam";
@@ -12,7 +13,15 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(loggerConnect, handleApiError, connectToMongo, express.json());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+  }),
+  loggerConnect,
+  handleApiError,
+  connectToMongo,
+  express.json()
+);
 
 app.get("/teams", getTeams);
 
