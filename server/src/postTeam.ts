@@ -17,7 +17,9 @@ export const postTeam = async (
             region: req.body.region,
             areLive: req.body.areLive,
             price: req.body.price,
-            owner_id: req.body.owner_id, // todo get from jwt haha
+            eliminated: req.body.eliminated,
+            owned: req.body.owned,
+            available: req.body.available,
           },
         }
       );

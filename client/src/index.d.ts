@@ -24,9 +24,19 @@ declare interface team {
   oddsToAdvance_4: number;
   oddsToAdvance_2: number;
   oddsToAdvance_1: number;
-  areLive: boolean;
-  owner_id: null | string;
+  live: boolean;
+  owned: boolean;
+  available: boolean;
   region: string | null;
   seed: number | null;
   price: null | number;
+  eliminated: boolean;
+}
+
+declare interface history {
+  _id: string;
+  name: string;
+  seed: number;
+  price: number;
+  year: number;
 }

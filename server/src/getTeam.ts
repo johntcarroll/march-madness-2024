@@ -7,6 +7,7 @@ export const getTeam = async (
 ) => {
   try {
     if (!req.database) throw "Not connected to MongoDB";
+    if (!req.logger) throw "No Logger";
     // get the team
     const teamsCollection = req.database.collection("teams");
     const team = await teamsCollection.findOne({ id: req.params.id });
@@ -16,7 +17,7 @@ export const getTeam = async (
     if (!team || !cachedTeam) {
       return res.status(404).json({ message: "Team not found" });
     }
-
+    req.logger.info(`${{ ...team, ...cachedTeam }}`);
     res.status(200).json({ ...team, ...cachedTeam });
     next();
   } catch (e) {

@@ -110,9 +110,11 @@ interface exportDataStructure extends rankingsDataTeam, kenpomDataTeam {
   _id?: ObjectId;
   trOriginalTeamName: string;
   region?: string | null;
-  areLive: boolean;
-  owner_id?: ObjectId | null;
-  playin: boolean;
+  live: boolean;
+  owned: boolean;
+  available: boolean;
+  package: "high-seed" | "playin" | null;
+  eliminated: boolean;
 }
 
 const getDataFromKenpom = async (): Promise<Array<kenpomDataTeam>> => {
@@ -132,29 +134,35 @@ const getDataFromKenpom = async (): Promise<Array<kenpomDataTeam>> => {
             .replace(/[^a-zA-Z]/g, "")
             .toLowerCase()
         ),
-        rank: Number($(row).find("td:nth-child(1)").text()),
-        team: $(row).find("td:nth-child(2)").text(),
-        conference: $(row).find("td:nth-child(3)").text(),
-        wins: Number($(row).find("td:nth-child(4)").text().split("-")[0]),
-        losses: Number($(row).find("td:nth-child(4)").text().split("-")[1]),
-        adjustedEfficiency: Number($(row).find("td:nth-child(5)").text()),
+        rank: Number($(row).find("td:nth-child(1)").text().trim()),
+        team: $(row).find("td:nth-child(2)").text().trim(),
+        conference: $(row).find("td:nth-child(3)").text().trim(),
+        wins: Number(
+          $(row).find("td:nth-child(4)").text().trim().split("-")[0]
+        ),
+        losses: Number(
+          $(row).find("td:nth-child(4)").text().trim().split("-")[1]
+        ),
+        adjustedEfficiency: Number(
+          $(row).find("td:nth-child(5)").text().trim()
+        ),
         adjustedOffensiveEfficiency: Number(
-          $(row).find("td:nth-child(6)").text()
+          $(row).find("td:nth-child(6)").text().trim()
         ),
         adjustedDefensiveEfficiency: Number(
-          $(row).find("td:nth-child(8)").text()
+          $(row).find("td:nth-child(8)").text().trim()
         ),
         adjustedTempo: Number($(row).find("td:nth-child(10)").text()),
         luck: Number($(row).find("td:nth-child(12)").text()),
         strengthOfSchedule: Number($(row).find("td:nth-child(14)").text()),
         averageOpponentAdjustedOffensiveEfficiency: Number(
-          $(row).find("td:nth-child(16)").text()
+          $(row).find("td:nth-child(16)").text().trim()
         ),
         averageOpponentAdjustedDefensiveEfficiency: Number(
-          $(row).find("td:nth-child(18)").text()
+          $(row).find("td:nth-child(18)").text().trim()
         ),
         nonConferenceStrengthOfSchedule: Number(
-          $(row).find("td:nth-child(20)").text()
+          $(row).find("td:nth-child(20)").text().trim()
         ),
       });
     });
@@ -242,9 +250,16 @@ const mergeDataSources = (
       ...matchingRTeamData,
       _id: new ObjectId(),
       region: null,
-      areLive: false,
-      owner_id: null,
-      playin: false,
+      live: false,
+      owned: false,
+      available: false,
+      package:
+        matchingRTeamData.seed == 14 ||
+        matchingRTeamData.seed == 15 ||
+        matchingRTeamData.seed == 16
+          ? "high-seed"
+          : null,
+      eliminated: false,
       // seed: null, // add this after selection sunday
     };
   });
@@ -280,34 +295,34 @@ const simulateRegions = (data: exportDataStructure[]) => {
   for (const seed of normal_seeds) {
     const teams = data.filter((team) => team.seed == seed);
     if (teams.length !== 4) throw "there was an error";
-    teams[0].region = "North";
-    teams[1].region = "East";
-    teams[2].region = "South";
-    teams[3].region = "West";
+    teams[0].region = "north";
+    teams[1].region = "east";
+    teams[2].region = "south";
+    teams[3].region = "west";
   }
 
   for (const seed of five_team_seeds) {
     const teams = data.filter((team) => team.seed == seed);
     if (teams.length !== 5) throw "there was an error";
-    teams[0].region = "North";
-    teams[1].region = "East";
-    teams[2].region = "South";
-    teams[3].region = "West";
-    teams[3].playin = true;
-    teams[4].region = seed == 11 ? "West" : "East";
-    teams[4].playin = true;
+    teams[0].region = "north";
+    teams[1].region = "east";
+    teams[2].region = "south";
+    teams[3].region = "west";
+    teams[3].package = "playin";
+    teams[4].region = seed == 11 ? "west" : "east";
+    teams[4].package = "playin";
   }
   const teams = data.filter((team) => team.seed == 16);
   if (teams.length !== 6) throw "there was an error";
-  teams[0].region = "North";
-  teams[1].region = "East";
-  teams[2].region = "South";
-  teams[3].region = "West";
-  teams[3].playin = true;
-  teams[4].region = "North";
-  teams[4].playin = true;
-  teams[5].region = "South";
-  teams[5].playin = true;
+  teams[0].region = "north";
+  teams[1].region = "east";
+  teams[2].region = "south";
+  teams[3].region = "west";
+  teams[3].package = "playin";
+  teams[4].region = "north";
+  teams[4].package = "playin";
+  teams[5].region = "south";
+  teams[5].package = "playin";
   return data;
 };
 

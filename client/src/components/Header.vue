@@ -1,28 +1,82 @@
 <script lang="ts" setup>
-import Menubar from "primevue/menubar";
+import Megamenu from "primevue/Megamenu";
 import Card from "primevue/card";
 import AuctionStats from "./AuctionStats.vue";
 import InputText from "primevue/inputtext";
 import { useRouter } from "vue-router";
+import { computed } from "vue";
+import { useTeamsStore } from "../store";
 const router = useRouter();
-const menuItems = [
-  {
-    label: "Bracket",
-    icon: "pi pi-home",
-    command: () => router.push("/"),
-  },
-  {
-    label: "List Teams",
-    icon: "pi pi-list",
-    command: () => router.push("/teams"),
-  },
-  {
-    label: "Team Dashboard",
-    icon: "pi pi-chart-line",
-    // todo add bug dropdown here of all teams
-    // need to simulate selection sunday first
-  },
-];
+const teamStore = useTeamsStore();
+const menuItems = computed(() => {
+  const northTeams = teamStore.teams
+    .filter((team) => team.region == "north")
+    .sort((a, b) => (a.seed ?? 1) - (b.seed ?? 16));
+  const southTeams = teamStore.teams
+    .filter((team) => team.region == "south")
+    .sort((a, b) => (a.seed ?? 1) - (b.seed ?? 16));
+  const eastTeams = teamStore.teams
+    .filter((team) => team.region == "east")
+    .sort((a, b) => (a.seed ?? 1) - (b.seed ?? 16));
+  const westTeams = teamStore.teams
+    .filter((team) => team.region == "west")
+    .sort((a, b) => (a.seed ?? 1) - (b.seed ?? 16));
+  const items = [
+    [
+      {
+        label: "North",
+        items: northTeams.map(({ seed, team, id }) => ({
+          label: `${team} ${seed}`,
+          command: () => router.push(`/team/${id}`),
+        })),
+      },
+    ],
+    [
+      {
+        label: "South",
+        items: southTeams.map(({ seed, team, id }) => ({
+          label: `${team} ${seed}`,
+          command: () => router.push(`/team/${id}`),
+        })),
+      },
+    ],
+    [
+      {
+        label: "East",
+        items: eastTeams.map(({ seed, team, id }) => ({
+          label: `${team} ${seed}`,
+          command: () => router.push(`/team/${id}`),
+        })),
+      },
+    ],
+    [
+      {
+        label: "West",
+        items: westTeams.map(({ seed, team, id }) => ({
+          label: `${team} ${seed}`,
+          command: () => router.push(`/team/${id}`),
+        })),
+      },
+    ],
+  ];
+  return [
+    {
+      label: "Bracket",
+      icon: "pi pi-home",
+      command: () => router.push("/"),
+    },
+    {
+      label: "List Teams",
+      icon: "pi pi-list",
+      command: () => router.push("/teams"),
+    },
+    {
+      label: "Team Dashboard",
+      icon: "pi pi-chart-line",
+      items,
+    },
+  ];
+});
 </script>
 <template>
   <Card class="bordered">
@@ -31,15 +85,7 @@ const menuItems = [
         <img src="logo.png" alt="" />
         <div class="flex-grow-1 flex flex-column">
           <AuctionStats class="flex-grow-1" />
-          <Menubar :model="menuItems">
-            <template #end
-              ><InputText
-                placeholder="Search"
-                type="text"
-                class="w-8rem sm:w-auto"
-              />
-            </template>
-          </Menubar>
+          <Megamenu :model="menuItems"> </Megamenu>
         </div>
       </div>
     </template>

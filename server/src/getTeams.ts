@@ -6,9 +6,11 @@ export const getTeams = async (
 ) => {
   try {
     if (!req.database) throw "Not connected to MongoDB";
+    if (!req.logger) throw "No Logger";
     const collection = req.database.collection("teams");
     const query = collection.find({ seed: { $ne: null } });
     const teams = await query.toArray();
+    req.logger.info(`${teams.length} teams retrieved`);
     res.status(200).json(teams);
     next();
   } catch (e) {

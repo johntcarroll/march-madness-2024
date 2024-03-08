@@ -5,10 +5,14 @@ import AuctionStats from "./components/AuctionStats.vue";
 </script>
 
 <template>
-  <div class="grid">
-    <div class="col-12"><Header /></div>
-    <div class="col-12"><RouterView /></div>
+  <div class="flex flex-column h-screen">
+    <div class="h-25rem"><Header /></div>
+    <div class="flex-grow-1 main-content px-2"><RouterView /></div>
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.main-content {
+  overflow-y: scroll;
+}
+</style>

@@ -6,10 +6,3 @@ declare module "express-serve-static-core" {
     logger?: Logger;
   }
 }
-
-declare global {
-  class Logger {
-    info(message: string): void;
-    error(message: string, error?: Error): void;
-  }
-}

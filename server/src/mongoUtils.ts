@@ -10,6 +10,7 @@ export const connectToMongo = (
     process.env.MONGO_URI || "mongodb://localhost:27017"
   );
   req.database = mongoClient.db("auction");
+  if (req.logger) req.logger.info("Connected to MongoDB");
   next();
 };
 
@@ -19,5 +20,6 @@ export const disconnectFromMongo = (
   next: NextFunction
 ) => {
   if (req.mongoClient) req.mongoClient.close();
+  if (req.logger) req.logger.info("Disconnected from MongoDB");
   next();
 };
