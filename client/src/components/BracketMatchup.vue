@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { computed } from "vue";
-import { useHistoryStore, useMatchupStore } from "../store";
+import { useHistoryStore, useMatchupStore, useTeamsStore } from "../store";
 const historyStore = useHistoryStore();
-historyStore.fetchHistory();
 const matchupStore = useMatchupStore();
+const teamsStore = useTeamsStore();
 const props = defineProps({
   id: {
     type: Number,
@@ -13,6 +13,7 @@ const props = defineProps({
 const matchup = computed(() =>
   matchupStore.matchups.find((matchup) => matchup.id == props.id)
 );
+
 const topTeamName =
   matchup.value?.teams[0].length == 1 ? matchup.value?.teams[0][0].team : "?";
 const topTeamSeed =
@@ -34,6 +35,8 @@ const topOwned = computed(
 const bottomOwned = computed(
   () => matchup.value?.teams[1].findIndex((team) => team.owned) !== -1
 );
+const topClickable = computed(() => matchup.value?.teams[0].length == 1);
+const bottomClickable = computed(() => matchup.value?.teams[1].length == 1);
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -48,7 +51,13 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
     <div class="matchup flex flex-column flex-grow-1">
       <div
         class="team top-team text-xs flex align-items-center p-1"
-        :class="{ live: topLive, owned: topOwned }"
+        :class="{ live: topLive, owned: topOwned, clickable: topClickable }"
+        @click="
+          if (topClickable)
+            teamsStore.makeLotLive(
+              teamsStore.teamToLotMap.get(matchup?.teams[0][0])
+            );
+        "
       >
         <div class="text-lg">{{ topTeamSeed }}</div>
         <div class="flex-grow-1 text-center">
@@ -57,7 +66,17 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
       </div>
       <div
         class="team bottom-team text-xs flex align-items-center p-1"
-        :class="{ live: bottomLive, owned: bottomOwned }"
+        :class="{
+          live: bottomLive,
+          owned: bottomOwned,
+          clickable: bottomClickable,
+        }"
+        @click="
+          if (bottomClickable)
+            teamsStore.makeLotLive(
+              teamsStore.teamToLotMap.get(matchup?.teams[1][0])
+            );
+        "
       >
         <div class="text-lg">{{ bottomTeamSeed }}</div>
         <div class="flex-grow-1 text-center">
@@ -73,6 +92,11 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   width: 150px;
   border: 1px solid;
   border-radius: var(--border-radius);
+}
+
+.team.clickable:hover {
+  cursor: pointer;
+  background-color: hsla(160, 100%, 37%, 0.2);
 }
 
 .team.live {

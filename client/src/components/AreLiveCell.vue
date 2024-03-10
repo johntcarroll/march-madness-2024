@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 const props = defineProps({
-  areLive: Boolean,
+  live: Boolean,
 });
 </script>
 <template>
-  <div class="record-icon" v-if="areLive">
+  <div class="record-icon" v-if="live">
     <div class="inner-dot"></div>
   </div>
 </template>

@@ -2,6 +2,7 @@
 import { useTeamsStore } from "../store";
 import AreLiveCell from "../components/AreLiveCell.vue";
 import OwnedCell from "../components/OwnedCell.vue";
+import SoldCell from "../components/SoldCell.vue";
 import type { Component } from "vue";
 import { useRouter } from "vue-router";
 const percentageFormatter = (value: any) => `${Math.ceil(value * 100)}%`;
@@ -12,7 +13,6 @@ function numberToColorGradient(number: number) {
   return "rgba(" + red + "," + green + ",0, 25%)";
 }
 const teamsStore = useTeamsStore();
-teamsStore.fetchTeams();
 const router = useRouter();
 const columns: {
   field: keyof team;
@@ -31,12 +31,13 @@ const columns: {
   { field: "seed", header: "Seed" },
   { field: "region", header: "Region" },
   { field: "team", header: "Team" },
-  { field: "areLive", header: "Live", component: AreLiveCell },
-  { field: "owner_id", header: "Owned", component: OwnedCell },
+  { field: "live", header: "Live", component: AreLiveCell },
+  { field: "owned", header: "Owned", component: OwnedCell },
+  { field: "sold", header: "Sold", component: SoldCell },
   {
     field: "price",
     header: "Price",
-    formatter: (value: any) => `$${value || 0}`,
+    formatter: (value: any) => `$${value?.toFixed(2) || 0}`,
   },
   { field: "conference", header: "Conference" },
   { field: "wins", header: "Wins" },

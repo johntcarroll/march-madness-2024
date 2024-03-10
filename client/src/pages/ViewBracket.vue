@@ -1,10 +1,7 @@
 <script lang="ts" setup>
 import BracketMatchup from "../components/BracketMatchup.vue";
-import { useHistoryStore, useTeamsStore } from "../store";
+import { useTeamsStore } from "../store";
 const teamsStore = useTeamsStore();
-const historyStore = useHistoryStore();
-teamsStore.fetchTeams();
-historyStore.fetchHistory();
 </script>
 <template>
   <div class="flex flex-column" v-if="!teamsStore.loading && !teamsStore.error">

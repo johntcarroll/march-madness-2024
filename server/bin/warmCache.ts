@@ -60,7 +60,9 @@ const clearCache = async (mongoCollection: Collection<Document>) => {
 const getTeams = async (
   mongoCollection: Collection<Document>
 ): Promise<team[]> => {
-  return (await mongoCollection.find({}).toArray()) as unknown as team[];
+  return (await mongoCollection
+    .find({ seed: { $ne: null } })
+    .toArray()) as unknown as team[];
 };
 
 const rankDocumentsByProperty = (

@@ -112,9 +112,8 @@ interface exportDataStructure extends rankingsDataTeam, kenpomDataTeam {
   region?: string | null;
   live: boolean;
   owned: boolean;
-  available: boolean;
+  sold: boolean;
   package: "high-seed" | "playin" | null;
-  eliminated: boolean;
 }
 
 const getDataFromKenpom = async (): Promise<Array<kenpomDataTeam>> => {
@@ -252,14 +251,13 @@ const mergeDataSources = (
       region: null,
       live: false,
       owned: false,
-      available: false,
+      sold: false,
       package:
         matchingRTeamData.seed == 14 ||
         matchingRTeamData.seed == 15 ||
         matchingRTeamData.seed == 16
           ? "high-seed"
           : null,
-      eliminated: false,
       // seed: null, // add this after selection sunday
     };
   });

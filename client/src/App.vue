@@ -1,7 +1,10 @@
 <script lang="ts" setup>
 import Header from "./components/Header.vue";
-import Card from "primevue/card";
-import AuctionStats from "./components/AuctionStats.vue";
+import { useTeamsStore, useHistoryStore } from "./store";
+const teamsStore = useTeamsStore();
+const historyStore = useHistoryStore();
+teamsStore.fetchTeams();
+historyStore.fetchHistory();
 </script>
 
 <template>

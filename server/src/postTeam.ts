@@ -6,23 +6,23 @@ export const postTeam = async (
 ) => {
   try {
     if (!req.database) throw "Not connected to MongoDB";
+    req.logger.info(`updating team`, req.body);
     const collection = req.database.collection("teams");
+    console.log("finding team", { id: req.params.id });
     const team = await collection.findOne({ id: req.params.id });
+    console.log("found team", team);
     if (team) {
       await collection.updateOne(
         { _id: team._id },
         {
           $set: {
-            seed: req.body.seed,
-            region: req.body.region,
-            areLive: req.body.areLive,
             price: req.body.price,
-            eliminated: req.body.eliminated,
-            owned: req.body.owned,
-            available: req.body.available,
+            owned: Boolean(req.body.owned),
+            sold: Boolean(req.body.sold),
           },
         }
       );
+      req.logger.info("team updated");
       res.status(200).json({ updated_id: team._id });
     } else if (!team) {
       res.status(404).json({ message: "Team not found" });

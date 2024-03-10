@@ -1,7 +1,8 @@
-<script lang="ts" setup></script>
-
+<script lang="ts" setup>
+import LotManager from "./LotManager.vue";
+</script>
 <template>
-  <div>this is auction stats</div>
+  <LotManager />
 </template>
 
 <style scoped></style>

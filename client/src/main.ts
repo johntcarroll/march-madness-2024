@@ -19,7 +19,7 @@ import "primeflex/primeflex.css";
 const routes = [
   { path: "/", component: ViewBracket },
   { path: "/teams", component: ListTeams },
-  { path: "/teams/:id", component: TeamDashboard },
+  { path: "/team/:id", component: TeamDashboard },
 ];
 const pinia = createPinia();
 

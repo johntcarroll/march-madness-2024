@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 const props = defineProps({
-  owned: Boolean,
+  sold: Boolean,
 });
 </script>
 <template>
-  <i v-if="owned" class="pi pi-check"></i>
+  <i v-if="sold" class="pi pi-check"></i>
 </template>
 <style scoped></style>

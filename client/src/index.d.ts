@@ -26,11 +26,28 @@ declare interface team {
   oddsToAdvance_1: number;
   live: boolean;
   owned: boolean;
-  available: boolean;
+  sold: boolean;
   region: string | null;
-  seed: number | null;
+  seed: number;
   price: null | number;
-  eliminated: boolean;
+  wins_rank: number;
+  losses_rank: number;
+  adjustedEfficiencyMargin_rank: number;
+  adjustedOffensiveEfficiency_rank: number;
+  adjustedDefensiveEfficiency_rank: number;
+  adjustedTempo_rank: number;
+  luck_rank: number;
+  strengthOfSchedule_rank: number;
+  averageOpponentAdjustedOffensiveEfficiency_rank: number;
+  averageOpponentAdjustedDefensiveEfficiency_rank: number;
+  nonConferenceStrengthOfSchedule_rank: number;
+  oddsToAdvance_64_rank: number;
+  oddsToAdvance_32_rank: number;
+  oddsToAdvance_16_rank: number;
+  oddsToAdvance_8_rank: number;
+  oddsToAdvance_4_rank: number;
+  oddsToAdvance_2_rank: number;
+  oddsToAdvance_1_rank: number;
 }
 
 declare interface history {

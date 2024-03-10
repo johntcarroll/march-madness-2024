@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { computed, ref } from "vue";
+import { computed, ref, type ComputedRef } from "vue";
 const REGION_MAP = {
   north: "north",
   south: "south",
@@ -34,25 +34,84 @@ export const useHistoryStore = defineStore("history", () => {
     }
   };
 
+  const totalPotByYear = computed(() => {
+    return history.value.reduce((acc, history) => {
+      if (!acc.has(history.year)) acc.set(history.year, history.price);
+      acc.set(history.year, acc.get(history.year) + history.price);
+      return acc;
+    }, new Map());
+  });
+
   // decided to only use the last 3 auctions of data for the historical average calcuations here
   const averageHistoricalTotalPot = computed(() => {
-    const totalPotByYear = history.value
-      .filter(
-        (history) =>
-          history.year == 2023 || history.year == 2022 || history.year == 2019
-      )
-      .reduce((acc, history) => {
-        if (!acc.has(history.year)) acc.set(history.year, history.price);
-        acc.set(history.year, acc.get(history.year) + history.price);
-        return acc;
-      }, new Map());
     return (
-      Array.from(totalPotByYear.values()).reduce((acc, val) => acc + val, 0) /
-      totalPotByYear.size
+      Array.from(totalPotByYear.value.entries()).reduce((acc, [year, pot]) => {
+        if (year == 2023 || year == 2022 || year == 2019) acc = acc + pot;
+        return acc;
+      }, 0) / 3
     );
   });
 
-  return { history, averageHistoricalTotalPot, fetchHistory };
+  const averagePercentageOfPotBySeedAndYear = computed(() => {
+    const years: number[] = Array.from(totalPotByYear.value.keys());
+    const popByYear: Record<number, Record<number, number>> = {};
+    for (const year of years) {
+      popByYear[year] = {};
+      for (let seed = 1; seed < 14; seed++) {
+        const teamsByYearAndSeed = history.value.filter(
+          (history) => history.seed == seed && history.year == year
+        );
+        const totalPrice = teamsByYearAndSeed.reduce(
+          (totalPrice, history) => (totalPrice += history.price),
+          0
+        );
+        const percentageOfPot = totalPrice / totalPotByYear.value.get(year);
+        popByYear[year][seed] = percentageOfPot;
+      }
+      // process packaged seeds
+      const packagedTeams = history.value.filter(
+        (history) =>
+          (history.seed == 14 || history.seed == 15 || history.seed == 16) &&
+          history.year == year
+      );
+      const totalPrice = packagedTeams.reduce(
+        (totalPrice, history) => (totalPrice += history.price),
+        0
+      );
+      const percentageOfPot = totalPrice / totalPotByYear.value.get(year);
+      popByYear[year][14] = percentageOfPot;
+      popByYear[year][15] = percentageOfPot;
+      popByYear[year][16] = percentageOfPot;
+    }
+    return popByYear;
+  });
+
+  const averagePercentageOfPotBySeed = computed(() => {
+    const totalBySeed: Record<number, number> = Object.values(
+      averagePercentageOfPotBySeedAndYear.value
+    ).reduce((totalBySeed, yearSeeds) => {
+      for (const seed of Object.keys(yearSeeds)) {
+        const newKey = Number(seed);
+        if (totalBySeed[newKey]) totalBySeed[newKey] += yearSeeds[newKey];
+        else totalBySeed[newKey] = yearSeeds[newKey];
+      }
+      return totalBySeed;
+    }, {});
+    return Object.entries(totalBySeed).reduce((avgBySeed, [seed, total]) => {
+      const newKey = Number(seed);
+      avgBySeed[newKey] = total / totalPotByYear.value.size;
+      return avgBySeed;
+    }, {} as Record<number, number>);
+  });
+
+  return {
+    history,
+    averageHistoricalTotalPot,
+    fetchHistory,
+    averagePercentageOfPotBySeedAndYear,
+    averagePercentageOfPotBySeed,
+    totalPotByYear,
+  };
 });
 export const useTeamsStore = defineStore("teams", () => {
   const teams = ref<team[]>([]);
@@ -87,6 +146,124 @@ export const useTeamsStore = defineStore("teams", () => {
           : 1;
     });
   });
+
+  interface lot {
+    teams: team[];
+    region: string;
+    seeds?: number[];
+    seed?: number;
+  }
+  const lots: ComputedRef<lot[]> = computed(() => {
+    const noPackageSeeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13];
+    return [
+      // always one team lots
+      ...noPackageSeeds.reduce(
+        (
+          lots: {
+            region: string;
+            seed?: number;
+            seeds?: number[];
+            teams: team[];
+          }[],
+          seed
+        ) => {
+          lots.push(
+            ...Object.values(REGION_MAP).map((region) => ({
+              seed: seed,
+              region: region,
+              teams: teams.value.filter(
+                (team) => team.region == region && team.seed == seed
+              ),
+            }))
+          );
+          return lots;
+        },
+        []
+      ),
+      ...Object.values(REGION_MAP).map((region) => ({
+        region,
+        seeds: [14, 15, 16],
+        teams: teams.value.filter(
+          (team) => team.region == region && [14, 15, 16].includes(team.seed)
+        ),
+      })),
+      {
+        region: REGION_MAP.north,
+        seed: 11,
+        teams: teams.value.filter(
+          (team) => team.region == REGION_MAP.north && team.seed == 11
+        ),
+      },
+      {
+        region: REGION_MAP.south,
+        seed: 11,
+        teams: teams.value.filter(
+          (team) => team.region == REGION_MAP.south && team.seed == 11
+        ),
+      },
+      {
+        region: REGION_MAP.north,
+        seed: 12,
+        teams: teams.value.filter(
+          (team) => team.region == REGION_MAP.north && team.seed == 12
+        ),
+      },
+      {
+        region: REGION_MAP.south,
+        seed: 12,
+        teams: teams.value.filter(
+          (team) => team.region == REGION_MAP.south && team.seed == 11
+        ),
+      },
+      {
+        region: REGION_MAP.east,
+        seed: 11,
+        teams: teams.value.filter(
+          (team) => team.region == REGION_MAP.east && team.seed == 11
+        ),
+      },
+      {
+        region: REGION_MAP.east,
+        seed: 12,
+        teams: teams.value.filter(
+          (team) => team.region == REGION_MAP.east && team.seed == 12
+        ),
+      },
+      {
+        region: REGION_MAP.west,
+        seed: 11,
+        teams: teams.value.filter(
+          (team) => team.region == REGION_MAP.west && team.seed == 11
+        ),
+      },
+      {
+        region: REGION_MAP.west,
+        seed: 12,
+        teams: teams.value.filter(
+          (team) => team.region == REGION_MAP.west && team.seed == 12
+        ),
+      },
+    ];
+  });
+
+  const teamToLotMap = computed(() => {
+    const ttpMap = new Map();
+    for (const team of teams.value) {
+      ttpMap.set(
+        team,
+        lots.value.find((lot) => lot.teams.includes(team))
+      );
+    }
+    return ttpMap;
+  });
+
+  const makeLotLive = (lot: lot) => {
+    teams.value.forEach((team) => {
+      if (lot.teams.includes(team)) team.live = true;
+      else team.live = false;
+    });
+  };
+
   return {
     teams,
     error,
@@ -95,6 +272,9 @@ export const useTeamsStore = defineStore("teams", () => {
     sortedTeams,
     sortColumn,
     sortDirection,
+    lots,
+    teamToLotMap,
+    makeLotLive,
   };
 });
 
@@ -104,10 +284,7 @@ const getTeamsBySeedAndRegion = (
   region: string
 ) =>
   teams.filter(
-    (team) =>
-      team.region == region &&
-      seeds.includes(team.seed ?? 0) &&
-      team.eliminated == false
+    (team) => team.region == region && seeds.includes(team.seed ?? 0)
   );
 
 export const useMatchupStore = defineStore("matchups", () => {
