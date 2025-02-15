@@ -4,19 +4,26 @@ import { useTeamsStore } from "../store";
 const teamsStore = useTeamsStore();
 </script>
 <template>
-  <div class="flex flex-column" v-if="!teamsStore.loading && !teamsStore.error">
-    <div class="flex justify-content-around text-center flex-grow-1 header-row">
-      <div>1st Round</div>
-      <div>2nd Round</div>
-      <div>Sweet 16</div>
-      <div>Elite 8</div>
-      <div>Final 4</div>
-      <div>Championship</div>
-      <div>Final 4</div>
-      <div>Elite 8</div>
-      <div>Sweet 16</div>
-      <div>2nd Round</div>
-      <div>1st Round</div>
+  <div
+    class="flex flex-column"
+    v-if="
+      !teamsStore.loading && !teamsStore.error && teamsStore.teams.length > 0
+    "
+  >
+    <div
+      class="flex justify-content-around text-center flex-grow-1 header-row background-filled"
+    >
+      <h4>1st Round</h4>
+      <h4>2nd Round</h4>
+      <h4>Sweet 16</h4>
+      <h4>Elite 8</h4>
+      <h4>Final 4</h4>
+      <h4>Championship</h4>
+      <h4>Final 4</h4>
+      <h4>Elite 8</h4>
+      <h4>Sweet 16</h4>
+      <h4>2nd Round</h4>
+      <h4>1st Round</h4>
     </div>
     <div class="flex flex-grow-1 justify-content-around round-matchups">
       <div class="flex flex-column round-matchup">
@@ -140,11 +147,11 @@ const teamsStore = useTeamsStore();
       </div>
     </div>
     <div
-      class="center-gap round-matchups flex flex-grow-1 justify-content-center"
+      class="center-gap round-matchups flex flex-grow-1 justify-content-center align-items-center"
     >
-      <BracketMatchup :id="64" /><BracketMatchup :id="65" /><BracketMatchup
-        :id="66"
-      /><BracketMatchup :id="67" />
+      <BracketMatchup :id="64" /><BracketMatchup :id="65" />
+      <div class="h4 p-2">First Four</div>
+      <BracketMatchup :id="66" /><BracketMatchup :id="67" />
     </div>
   </div>
 </template>
@@ -161,6 +168,11 @@ const teamsStore = useTeamsStore();
   justify-content: start;
 }
 
+.header-row {
+  border-bottom: solid 1px rgba(255, 255, 255, 0.12);
+  position: sticky;
+  top: 0;
+}
 .header-row > div {
   flex: 1 1 0;
 }

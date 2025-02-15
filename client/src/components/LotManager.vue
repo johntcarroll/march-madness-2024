@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import InputNumber from "primevue/inputnumber";
 import { computed, ref } from "vue";
-import Checkbox from "primevue/checkbox";
+import ToggleButton from "primevue/togglebutton";
 import { useTeamsStore } from "../store";
 const teamsStore = useTeamsStore();
-let realTeam = teamsStore.teams[0];
 const teams = computed(() => {
   const ts = teamsStore.teams.filter((team) => team.live);
   return ts;
@@ -73,29 +72,42 @@ const priceModel = computed({
 });
 </script>
 <template>
-  <div class="flex flex-column main-form p-1 m-1" v-if="teams.length > 0">
-    <div class="p-2 flex align-items-center justify-content-between">
-      <label class="block mb-2" for="owned">Owned</label>
-      <Checkbox :binary="true" v-model="ownedModel" />
+  <div class="flex align-items-center">
+    <div v-if="teams.length > 0">
+      <h4 v-for="team in teams">{{ team.team }}</h4>
     </div>
-    <div class="p-2 flex align-items-center justify-content-between">
-      <label class="block mb-2" for="sold">Sold</label>
-      <Checkbox :binary="true" v-model="soldModel" />
-    </div>
-    <div class="p-2 flex-auto">
-      <label for="price" class="mb-2 block">Price</label>
-      <InputNumber
-        v-model="priceModel"
-        mode="currency"
-        currency="USD"
-        locale="en-US"
+    <h4 v-else>No Live Teams</h4>
+    <div></div>
+    <div class="flex main-form p-1 m-1">
+      <ToggleButton
+        v-model="ownedModel"
+        onLabel="Owned"
+        offLabel="Unowned"
+        :disabled="teams.length == 0"
+        class="p-1"
       />
+      <ToggleButton
+        v-model="soldModel"
+        onLabel="Sold"
+        offLabel="Available"
+        :disabled="teams.length == 0"
+        class="p-1"
+      />
+      <div class="p-2">
+        <label for="price" class="mb-2 block">Price</label>
+        <InputNumber
+          v-model="priceModel"
+          mode="currency"
+          currency="USD"
+          locale="en-US"
+          :disabled="teams.length == 0"
+        />
+      </div>
     </div>
   </div>
 </template>
 <style scoped>
-.main-form {
-  border: 1px solid;
-  border-radius: var(--border-radius);
+.main-form > * {
+  flex: 1 1 0;
 }
 </style>

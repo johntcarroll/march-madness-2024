@@ -8,9 +8,7 @@ export const postTeam = async (
     if (!req.database) throw "Not connected to MongoDB";
     req.logger.info(`updating team`, req.body);
     const collection = req.database.collection("teams");
-    console.log("finding team", { id: req.params.id });
     const team = await collection.findOne({ id: req.params.id });
-    console.log("found team", team);
     if (team) {
       await collection.updateOne(
         { _id: team._id },

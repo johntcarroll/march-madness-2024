@@ -1,13 +1,13 @@
 import { defineStore } from "pinia";
 import { computed, ref, type ComputedRef } from "vue";
 const REGION_MAP = {
-  north: "north",
-  south: "south",
-  east: "east",
+  north: "east",
+  south: "midwest",
+  east: "south",
   west: "west",
 };
 
-const PAYOUTS = {
+export const PAYOUTS = {
   1: 0.2, // pot / 5
   2: 0.1, // pot / 5 / 2
   4: 0.05, // pot / 5 / 4
@@ -37,7 +37,7 @@ export const useHistoryStore = defineStore("history", () => {
   const totalPotByYear = computed(() => {
     return history.value.reduce((acc, history) => {
       if (!acc.has(history.year)) acc.set(history.year, history.price);
-      acc.set(history.year, acc.get(history.year) + history.price);
+      else acc.set(history.year, acc.get(history.year) + history.price);
       return acc;
     }, new Map());
   });
@@ -114,6 +114,7 @@ export const useHistoryStore = defineStore("history", () => {
   };
 });
 export const useTeamsStore = defineStore("teams", () => {
+  const historyStore = useHistoryStore();
   const teams = ref<team[]>([]);
   const error = ref<Error | null>(null);
   const loading = ref(false);
@@ -154,7 +155,7 @@ export const useTeamsStore = defineStore("teams", () => {
     seed?: number;
   }
   const lots: ComputedRef<lot[]> = computed(() => {
-    const noPackageSeeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13];
+    const noPackageSeeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13];
     return [
       // always one team lots
       ...noPackageSeeds.reduce(
@@ -188,59 +189,31 @@ export const useTeamsStore = defineStore("teams", () => {
         ),
       })),
       {
-        region: REGION_MAP.north,
-        seed: 11,
-        teams: teams.value.filter(
-          (team) => team.region == REGION_MAP.north && team.seed == 11
-        ),
-      },
-      {
         region: REGION_MAP.south,
-        seed: 11,
+        seed: 10,
         teams: teams.value.filter(
-          (team) => team.region == REGION_MAP.south && team.seed == 11
-        ),
-      },
-      {
-        region: REGION_MAP.north,
-        seed: 12,
-        teams: teams.value.filter(
-          (team) => team.region == REGION_MAP.north && team.seed == 12
-        ),
-      },
-      {
-        region: REGION_MAP.south,
-        seed: 12,
-        teams: teams.value.filter(
-          (team) => team.region == REGION_MAP.south && team.seed == 11
+          (team) => team.region == REGION_MAP.south && team.seed == 10
         ),
       },
       {
         region: REGION_MAP.east,
-        seed: 11,
+        seed: 10,
         teams: teams.value.filter(
-          (team) => team.region == REGION_MAP.east && team.seed == 11
+          (team) => team.region == REGION_MAP.east && team.seed == 10
         ),
       },
       {
-        region: REGION_MAP.east,
-        seed: 12,
+        region: REGION_MAP.north,
+        seed: 10,
         teams: teams.value.filter(
-          (team) => team.region == REGION_MAP.east && team.seed == 12
-        ),
-      },
-      {
-        region: REGION_MAP.west,
-        seed: 11,
-        teams: teams.value.filter(
-          (team) => team.region == REGION_MAP.west && team.seed == 11
+          (team) => team.region == REGION_MAP.north && team.seed == 10
         ),
       },
       {
         region: REGION_MAP.west,
-        seed: 12,
+        seed: 10,
         teams: teams.value.filter(
-          (team) => team.region == REGION_MAP.west && team.seed == 12
+          (team) => team.region == REGION_MAP.west && team.seed == 10
         ),
       },
     ];
@@ -264,6 +237,65 @@ export const useTeamsStore = defineStore("teams", () => {
     });
   };
 
+  const smartValue = computed(() => {
+    return teams.value.map((team) => ({
+      actual: team.sold ? team.price ?? 0 : 0,
+      prediction:
+        (historyStore.averagePercentageOfPotBySeed[team.seed] /
+          teams.value.filter((t) =>
+            team.seed < 14 ? t.seed == team.seed : t.seed > 14
+          ).length) *
+        historyStore.averageHistoricalTotalPot,
+    }));
+  });
+
+  const smartPot = computed(() => {
+    return smartValue.value.reduce((smartPot, sv) => {
+      return smartPot + (sv.actual ? sv.actual : sv.prediction);
+    }, 0);
+  });
+
+  const liveEv = computed(() => {
+    return teams.value
+      .filter((team) => team.live)
+      .reduce((ev, team) => {
+        return (
+          smartPot.value *
+            (team.oddsToAdvance_1 * PAYOUTS[1] +
+              team.oddsToAdvance_2 * PAYOUTS[2] +
+              team.oddsToAdvance_4 * PAYOUTS[4] +
+              team.oddsToAdvance_8 * PAYOUTS[8] +
+              team.oddsToAdvance_16 * PAYOUTS[16]) +
+          ev
+        );
+      }, 0);
+  });
+
+  const ownedEv = computed(() => {
+    return teams.value
+      .filter((team) => team.owned)
+      .reduce((ev, team) => {
+        return (
+          smartPot.value *
+            (team.oddsToAdvance_1 * PAYOUTS[1] +
+              team.oddsToAdvance_2 * PAYOUTS[2] +
+              team.oddsToAdvance_4 * PAYOUTS[4] +
+              team.oddsToAdvance_8 * PAYOUTS[8] +
+              team.oddsToAdvance_16 * PAYOUTS[16]) +
+          ev
+        );
+      }, 0);
+  });
+
+  const totalPot = computed(() => {
+    return teams.value.reduce((total, team) => (total += team?.price ?? 0), 0);
+  });
+
+  const totalSpend = computed(() => {
+    return teams.value
+      .filter((team) => team.owned)
+      .reduce((total, team) => (total += team?.price ?? 0), 0);
+  });
   return {
     teams,
     error,
@@ -275,6 +307,12 @@ export const useTeamsStore = defineStore("teams", () => {
     lots,
     teamToLotMap,
     makeLotLive,
+    smartValue,
+    smartPot,
+    liveEv,
+    ownedEv,
+    totalPot,
+    totalSpend,
   };
 });
 
@@ -379,9 +417,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -393,9 +429,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -414,9 +448,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -428,9 +460,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -449,9 +479,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -463,9 +491,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -484,9 +510,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -498,9 +522,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -520,30 +542,24 @@ export const useMatchupStore = defineStore("matchups", () => {
         ],
         liveValue: getTeamsBySeedAndRegion(
           teamsStore.teams,
-          [1, 4, 5, 6, 7, 12, 13, 16],
+          [1, 4, 5, 8, 9, 12, 13, 16],
           REGION_MAP.north
         )
           .filter((team) => team.live)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
           teamsStore.teams,
-          [1, 4, 5, 6, 7, 12, 13, 16],
+          [1, 4, 5, 8, 9, 12, 13, 16],
           REGION_MAP.north
         )
           .filter((team) => team.owned)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
       },
@@ -569,10 +585,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.live)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -583,10 +596,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.owned)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
       },
@@ -608,20 +618,14 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.region == REGION_MAP.north && team.live)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[4]),
+              (acc += team.oddsToAdvance_4 * teamsStore.smartPot * PAYOUTS[4]),
             0
           ),
         ownedValue: teamsStore.teams
           .filter((team) => team.region == REGION_MAP.north && team.owned)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[4]),
+              (acc += team.oddsToAdvance_4 * teamsStore.smartPot * PAYOUTS[4]),
             0
           ),
       },
@@ -643,20 +647,14 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.region == REGION_MAP.east && team.live)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[4]),
+              (acc += team.oddsToAdvance_4 * teamsStore.smartPot * PAYOUTS[4]),
             0
           ),
         ownedValue: teamsStore.teams
           .filter((team) => team.region == REGION_MAP.east && team.owned)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[4]),
+              (acc += team.oddsToAdvance_4 * teamsStore.smartPot * PAYOUTS[4]),
             0
           ),
       },
@@ -682,10 +680,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.live)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -696,10 +691,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.owned)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
       },
@@ -725,10 +717,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.live)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -739,10 +728,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.owned)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
       },
@@ -761,9 +747,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -775,9 +759,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -796,9 +778,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -810,9 +790,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -831,9 +809,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -845,9 +821,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -866,9 +840,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -880,9 +852,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -962,33 +932,31 @@ export const useMatchupStore = defineStore("matchups", () => {
       {
         id: 31,
         teams: [
-          teamsStore.teams.filter((team) => team.region == "north"),
-          teamsStore.teams.filter((team) => team.region == "west"),
+          teamsStore.teams.filter((team) => team.region == REGION_MAP.north),
+          teamsStore.teams.filter((team) => team.region == REGION_MAP.west),
         ],
         liveValue: teamsStore.teams
           .filter(
             (team) =>
-              (team.region == "north" || team.region == "west") && team.live
+              (team.region == REGION_MAP.north ||
+                team.region == REGION_MAP.west) &&
+              team.live
           )
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[2]),
+              (acc += team.oddsToAdvance_2 * teamsStore.smartPot * PAYOUTS[2]),
             0
           ),
         ownedValue: teamsStore.teams
           .filter(
             (team) =>
-              (team.region == "north" || team.region == "west") && team.owned
+              (team.region == REGION_MAP.north ||
+                team.region == REGION_MAP.west) &&
+              team.owned
           )
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[2]),
+              (acc += team.oddsToAdvance_2 * teamsStore.smartPot * PAYOUTS[2]),
             0
           ),
       },
@@ -997,30 +965,26 @@ export const useMatchupStore = defineStore("matchups", () => {
         id: 32,
         teams: [
           teamsStore.teams.filter(
-            (team) => team.region == "north" || team.region == "west"
+            (team) =>
+              team.region == REGION_MAP.north || team.region == REGION_MAP.west
           ),
           teamsStore.teams.filter(
-            (team) => team.region == "east" || team.region == "south"
+            (team) =>
+              team.region == REGION_MAP.east || team.region == REGION_MAP.south
           ),
         ],
         liveValue: teamsStore.teams
           .filter((team) => team.live)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[2]),
+              (acc += team.oddsToAdvance_1 * teamsStore.smartPot * PAYOUTS[1]),
             0
           ),
         ownedValue: teamsStore.teams
           .filter((team) => team.owned)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[2]),
+              (acc += team.oddsToAdvance_1 * teamsStore.smartPot * PAYOUTS[1]),
             0
           ),
       },
@@ -1028,33 +992,31 @@ export const useMatchupStore = defineStore("matchups", () => {
       {
         id: 33,
         teams: [
-          teamsStore.teams.filter((team) => team.region == "west"),
-          teamsStore.teams.filter((team) => team.region == "south"),
+          teamsStore.teams.filter((team) => team.region == REGION_MAP.east),
+          teamsStore.teams.filter((team) => team.region == REGION_MAP.south),
         ],
         liveValue: teamsStore.teams
           .filter(
             (team) =>
-              (team.region == "north" || team.region == "west") && team.live
+              (team.region == REGION_MAP.east ||
+                team.region == REGION_MAP.south) &&
+              team.live
           )
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[2]),
+              (acc += team.oddsToAdvance_2 * teamsStore.smartPot * PAYOUTS[2]),
             0
           ),
         ownedValue: teamsStore.teams
           .filter(
             (team) =>
-              (team.region == "north" || team.region == "west") && team.owned
+              (team.region == REGION_MAP.east ||
+                team.region == REGION_MAP.south) &&
+              team.owned
           )
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[2]),
+              (acc += team.oddsToAdvance_2 * teamsStore.smartPot * PAYOUTS[2]),
             0
           ),
       },
@@ -1146,9 +1108,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -1160,9 +1120,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -1181,9 +1139,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -1195,9 +1151,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -1216,9 +1170,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -1230,9 +1182,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -1251,9 +1201,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -1265,9 +1213,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -1293,10 +1239,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.live)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -1307,10 +1250,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.owned)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
       },
@@ -1336,10 +1276,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.live)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -1350,10 +1287,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.owned)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
       },
@@ -1378,10 +1312,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           )
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[4]),
+              (acc += team.oddsToAdvance_4 * teamsStore.smartPot * PAYOUTS[4]),
             0
           ),
       },
@@ -1406,10 +1337,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           )
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[4]),
+              (acc += team.oddsToAdvance_4 * teamsStore.smartPot * PAYOUTS[4]),
             0
           ),
       },
@@ -1435,10 +1363,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.live)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -1449,10 +1374,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.owned)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
       },
@@ -1478,10 +1400,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.live)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -1492,10 +1411,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .filter((team) => team.owned)
           .reduce(
             (acc, team) =>
-              (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[8]),
+              (acc += team.oddsToAdvance_8 * teamsStore.smartPot * PAYOUTS[8]),
             0
           ),
       },
@@ -1514,9 +1430,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -1528,9 +1442,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -1549,9 +1461,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -1563,9 +1473,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -1584,9 +1492,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -1598,9 +1504,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -1619,9 +1523,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
         ownedValue: getTeamsBySeedAndRegion(
@@ -1633,9 +1535,7 @@ export const useMatchupStore = defineStore("matchups", () => {
           .reduce(
             (acc, team) =>
               (acc +=
-                team.oddsToAdvance_16 *
-                historyStore.averageHistoricalTotalPot *
-                PAYOUTS[16]),
+                team.oddsToAdvance_16 * teamsStore.smartPot * PAYOUTS[16]),
             0
           ),
       },
@@ -1715,20 +1615,8 @@ export const useMatchupStore = defineStore("matchups", () => {
       {
         id: 64,
         teams: [
-          [
-            getTeamsBySeedAndRegion(
-              teamsStore.teams,
-              [16],
-              REGION_MAP.north
-            )[0],
-          ],
-          [
-            getTeamsBySeedAndRegion(
-              teamsStore.teams,
-              [16],
-              REGION_MAP.north
-            )[1],
-          ],
+          [getTeamsBySeedAndRegion(teamsStore.teams, [16], REGION_MAP.west)[0]],
+          [getTeamsBySeedAndRegion(teamsStore.teams, [16], REGION_MAP.west)[1]],
         ],
         liveValue: 0,
         ownedValue: 0,
@@ -1736,8 +1624,20 @@ export const useMatchupStore = defineStore("matchups", () => {
       {
         id: 65,
         teams: [
-          [getTeamsBySeedAndRegion(teamsStore.teams, [11], REGION_MAP.west)[0]],
-          [getTeamsBySeedAndRegion(teamsStore.teams, [11], REGION_MAP.west)[1]],
+          [
+            getTeamsBySeedAndRegion(
+              teamsStore.teams,
+              [10],
+              REGION_MAP.south
+            )[0],
+          ],
+          [
+            getTeamsBySeedAndRegion(
+              teamsStore.teams,
+              [10],
+              REGION_MAP.south
+            )[1],
+          ],
         ],
         liveValue: 0,
         ownedValue: 0,
@@ -1745,8 +1645,8 @@ export const useMatchupStore = defineStore("matchups", () => {
       {
         id: 66,
         teams: [
-          [getTeamsBySeedAndRegion(teamsStore.teams, [12], REGION_MAP.east)[0]],
-          [getTeamsBySeedAndRegion(teamsStore.teams, [12], REGION_MAP.east)[1]],
+          [getTeamsBySeedAndRegion(teamsStore.teams, [10], REGION_MAP.east)[0]],
+          [getTeamsBySeedAndRegion(teamsStore.teams, [10], REGION_MAP.east)[1]],
         ],
         liveValue: 0,
         ownedValue: 0,

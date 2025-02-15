@@ -3,7 +3,8 @@
 // key will be the kenpom team name without spaces or special characters, all lowercase
 import { load } from "cheerio";
 import { MongoClient, ObjectId } from "mongodb";
-import { findBestMatch } from "../src/stringSimilarity";
+import fs from "fs";
+/*
 const rankingsDataFixes = [
   { team: "N Carolina", manual: "northcarolina" },
   { team: "Wash State", manual: "washingtonst" },
@@ -70,8 +71,16 @@ const rankingsDataFixes = [
   { team: "N Dakota St", manual: "northdakotast" },
   { team: "Sac State", manual: "sacramentost" },
 ];
+*/
+const teamFixMap = new Map(
+  Object.entries({
+    brighamyoung: "byu",
+    northcarolinast: "ncstate",
+  })
+);
 const mongoClient = new MongoClient("mongodb://localhost:27017");
 
+/*
 interface rankingsDataTeam {
   seed: number;
   oddsToAdvance_64: number;
@@ -83,10 +92,12 @@ interface rankingsDataTeam {
   oddsToAdvance_1: number;
   team: string;
 }
-
+*/
+/*
 interface rankingsDataWithId extends rankingsDataTeam {
   id: string;
 }
+*/
 
 interface kenpomDataTeam {
   id: string;
@@ -106,10 +117,21 @@ interface kenpomDataTeam {
   nonConferenceStrengthOfSchedule: number;
 }
 
-interface exportDataStructure extends rankingsDataTeam, kenpomDataTeam {
+interface silverTeam {
+  team: string;
+  seed: number;
+  region: string;
+  oddsToAdvance_64: number;
+  oddsToAdvance_32: number;
+  oddsToAdvance_16: number;
+  oddsToAdvance_8: number;
+  oddsToAdvance_4: number;
+  oddsToAdvance_2: number;
+  oddsToAdvance_1: number;
+}
+
+interface exportDataStructure extends silverTeam, kenpomDataTeam {
   _id?: ObjectId;
-  trOriginalTeamName: string;
-  region?: string | null;
   live: boolean;
   owned: boolean;
   sold: boolean;
@@ -169,6 +191,7 @@ const getDataFromKenpom = async (): Promise<Array<kenpomDataTeam>> => {
   return teamData;
 };
 
+/*
 const getDataFromTeamRankings = async (): Promise<Array<rankingsDataTeam>> => {
   const request = await fetch(
     "https://www.teamrankings.com/ncaa-tournament/bracket-predictions/detail"
@@ -201,28 +224,10 @@ const getDataFromTeamRankings = async (): Promise<Array<rankingsDataTeam>> => {
   });
   return teamData;
 };
+*/
 
-const findIdForRankingsData = (
-  teamRankingsData: Array<rankingsDataTeam>,
-  kenpomData: Array<kenpomDataTeam>
-): Array<rankingsDataWithId> => {
-  return teamRankingsData.map((trTeam) => {
-    const fixedTeamName = rankingsDataFixes.find(
-      (rdt) => rdt.team == trTeam.team
-    )?.manual;
-
-    const { bestMatch } = findBestMatch(
-      fixedTeamName ?? trTeam.team.replace(/[^a-zA-Z]/g, "").toLowerCase(),
-      kenpomData.map(({ id }) => id)
-    );
-    return {
-      ...trTeam,
-      id: bestMatch.target,
-    };
-  });
-};
-
-const mergeDataSources = (
+/*
+const mergeDataSourcesOld = (
   kenpomData: kenpomDataTeam[],
   rankingsDataWithIds: rankingsDataWithId[]
 ): exportDataStructure[] => {
@@ -262,6 +267,7 @@ const mergeDataSources = (
     };
   });
 };
+*/
 
 const mongoSync = async (teamData: exportDataStructure[]) => {
   const mongoDb = mongoClient.db("auction");
@@ -284,34 +290,34 @@ const mongoSync = async (teamData: exportDataStructure[]) => {
     }
   }
 };
-/**
- * @param  {exportDataStructure[]} data
- */
+
 const simulateRegions = (data: exportDataStructure[]) => {
-  const normal_seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14, 15];
+  const normal_seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15];
   const five_team_seeds = [11, 12];
   for (const seed of normal_seeds) {
     const teams = data.filter((team) => team.seed == seed);
-    if (teams.length !== 4) throw "there was an error";
+    if (teams.length !== 4) throw "there was an error  normal seeds";
     teams[0].region = "north";
     teams[1].region = "east";
     teams[2].region = "south";
     teams[3].region = "west";
   }
 
-  for (const seed of five_team_seeds) {
-    const teams = data.filter((team) => team.seed == seed);
-    if (teams.length !== 5) throw "there was an error";
-    teams[0].region = "north";
-    teams[1].region = "east";
-    teams[2].region = "south";
-    teams[3].region = "west";
-    teams[3].package = "playin";
-    teams[4].region = seed == 11 ? "west" : "east";
-    teams[4].package = "playin";
-  }
+  const twelveSeedteams = data.filter((team) => team.seed == 11);
+  if (twelveSeedteams.length !== 6) throw "there was an error six team";
+  twelveSeedteams[0].region = "north";
+  twelveSeedteams[1].region = "east";
+  twelveSeedteams[2].region = "east";
+  twelveSeedteams[1].package = "playin";
+  twelveSeedteams[2].package = "playin";
+  twelveSeedteams[3].region = "west";
+  twelveSeedteams[3].package = "playin";
+  twelveSeedteams[4].region = "west";
+  twelveSeedteams[4].package = "playin";
+  twelveSeedteams[5].region = "south";
+
   const teams = data.filter((team) => team.seed == 16);
-  if (teams.length !== 6) throw "there was an error";
+  if (teams.length !== 6) throw "there was an error sixteen";
   teams[0].region = "north";
   teams[1].region = "east";
   teams[2].region = "south";
@@ -324,17 +330,62 @@ const simulateRegions = (data: exportDataStructure[]) => {
   return data;
 };
 
+const getSilverData = (): Promise<silverTeam[]> =>
+  new Promise((resolve, reject) => {
+    const csv = require("csv-parser");
+    const results: silverTeam[] = [];
+    fs.createReadStream("./bin/data.csv")
+      .pipe(csv())
+      .on("data", (data: silverTeam) => results.push(data))
+      .on("end", () => {
+        resolve(results);
+      });
+  });
+
+const mergeDataSources = (
+  kenPomTeams: kenpomDataTeam[],
+  silverTeams: silverTeam[]
+): exportDataStructure[] => {
+  const mergedTeams = silverTeams.map((st) => {
+    const silverTeamFixed = teamFixMap.has(st.team)
+      ? teamFixMap.get(st.team)
+      : st.team;
+    const kpMatch = kenPomTeams.find((kp) => kp.id == silverTeamFixed);
+    const isHighSeed = st.seed == 14 || st.seed == 15 || st.seed == 16;
+    const isPlayin =
+      (st.seed == 10 && st.region == "midwest") ||
+      (st.seed == 10 && st.region == "south");
+    return {
+      ...st,
+      ...(kpMatch || {}),
+      ...{
+        _id: new ObjectId(),
+        live: false,
+        owned: false,
+        sold: false,
+        package: isHighSeed ? "high-seed" : isPlayin ? "playin" : null,
+        team: kpMatch?.team?.replace(/\d+/g, "") ?? "",
+        oddsToAdvance_64: Number(st.oddsToAdvance_64),
+        oddsToAdvance_32: Number(st.oddsToAdvance_32),
+        oddsToAdvance_16: Number(st.oddsToAdvance_16),
+        oddsToAdvance_8: Number(st.oddsToAdvance_8),
+        oddsToAdvance_4: Number(st.oddsToAdvance_4),
+        oddsToAdvance_2: Number(st.oddsToAdvance_2),
+        oddsToAdvance_1: Number(st.oddsToAdvance_1),
+        seed: Number(st.seed),
+      },
+    };
+  });
+  return mergedTeams as any as exportDataStructure[];
+};
 const main = async () => {
   try {
     const kenpomData = await getDataFromKenpom();
-    const teamRankingsData = await getDataFromTeamRankings();
-    const rankingsDataWithIds = findIdForRankingsData(
-      teamRankingsData,
-      kenpomData
-    );
-    const combinedData = mergeDataSources(kenpomData, rankingsDataWithIds);
-    const simulatedData = simulateRegions(combinedData); // turn this off after selection sunday
-    await mongoSync(simulatedData);
+    //const teamRankingsData = await getDataFromTeamRankings();
+    const silverData = await getSilverData();
+    const combinedData = mergeDataSources(kenpomData, silverData);
+    // const simulatedData = simulateRegions(combinedData); // turn this off after selection sunday
+    await mongoSync(combinedData);
   } catch (e) {
     console.log("An Error Occured: ", e);
   } finally {

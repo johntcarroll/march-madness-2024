@@ -9,7 +9,7 @@ historyStore.fetchHistory();
 
 <template>
   <div class="flex flex-column h-screen">
-    <div class="h-25rem"><Header /></div>
+    <div class="p-2"><Header /></div>
     <div class="flex-grow-1 main-content px-2"><RouterView /></div>
   </div>
 </template>

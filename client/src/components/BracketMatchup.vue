@@ -37,6 +37,18 @@ const bottomOwned = computed(
 );
 const topClickable = computed(() => matchup.value?.teams[0].length == 1);
 const bottomClickable = computed(() => matchup.value?.teams[1].length == 1);
+const topSold = computed(
+  () =>
+    matchup.value?.teams[0].length == 1 &&
+    matchup.value?.teams[0][0].sold &&
+    !matchup.value?.teams[0][0].owned
+);
+const bottomSold = computed(
+  () =>
+    matchup.value?.teams[1].length == 1 &&
+    matchup.value?.teams[1][0].sold &&
+    !matchup.value?.teams[1][0].owned
+);
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -44,14 +56,21 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 </script>
 <template>
   <div class="flex flex-column m-2">
-    <div class="value-stats flex p-1 pb-0 text-xs">
-      <div>L{{ currencyFormatter.format(matchup?.liveValue ?? 0) }}</div>
+    <div class="value-stats flex p-1 pb-0 text-xs h4 justify-content-between">
+      <div>L {{ currencyFormatter.format(matchup?.liveValue ?? 0) }}</div>
       <div>O {{ currencyFormatter.format(matchup?.ownedValue ?? 0) }}</div>
     </div>
-    <div class="matchup flex flex-column flex-grow-1">
+    <div
+      class="matchup flex flex-column flex-grow-1 bordered background-filled"
+    >
       <div
         class="team top-team text-xs flex align-items-center p-1"
-        :class="{ live: topLive, owned: topOwned, clickable: topClickable }"
+        :class="{
+          live: topLive,
+          owned: topOwned,
+          clickable: topClickable,
+          sold: topSold,
+        }"
         @click="
           if (topClickable)
             teamsStore.makeLotLive(
@@ -70,6 +89,7 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
           live: bottomLive,
           owned: bottomOwned,
           clickable: bottomClickable,
+          sold: bottomSold,
         }"
         @click="
           if (bottomClickable)
@@ -88,10 +108,8 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 </template>
 <style scoped>
 .matchup {
-  height: 60px;
-  width: 150px;
-  border: 1px solid;
-  border-radius: var(--border-radius);
+  height: 65px;
+  width: 140px;
 }
 
 .team.clickable:hover {
@@ -108,12 +126,16 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   background-color: rgba(0, 255, 0, 0.15);
 }
 
+.team.sold {
+  text-decoration: line-through;
+}
+
 .matchup > .team {
   flex: 1 1 0;
 }
 
 .matchup > .top-team {
-  border-bottom: 1px solid;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .value-stats {

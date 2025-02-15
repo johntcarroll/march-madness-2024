@@ -26,7 +26,7 @@ const columns: {
     field: "rank",
     header: "Rank",
     formatter: (value: any) => `# ${value}`,
-    class: { "text-xl": true },
+    class: { "text-lg": true },
   },
   { field: "seed", header: "Seed" },
   { field: "region", header: "Region" },
@@ -39,7 +39,7 @@ const columns: {
     header: "Price",
     formatter: (value: any) => `$${value?.toFixed(2) || 0}`,
   },
-  { field: "conference", header: "Conference" },
+  { field: "conference", header: "Conf." },
   { field: "wins", header: "Wins" },
   { field: "losses", header: "Losses" },
   {
@@ -84,9 +84,6 @@ const columns: {
     style: (value: number) =>
       `background-color: ${numberToColorGradient(value)}`,
   },
-  { field: "adjustedEfficiency", header: "Adj Eff" },
-  { field: "adjustedTempo", header: "Adj Tempo" },
-  { field: "strengthOfSchedule", header: "SOS" },
 ];
 
 const sortTeams = (field: keyof team) => {
@@ -100,16 +97,16 @@ const sortTeams = (field: keyof team) => {
 };
 </script>
 <template>
-  <div class="grid">
+  <div class="grid p-2">
     <div class="header-row col-12 flex p-3">
       <div
-        class="table-cell cursor-pointer"
+        class="table-cell cursor-pointer text-sm"
         v-for="column in columns"
         @click="sortTeams(column.field)"
       >
         {{ column.header }}
         <i
-          class="pi text-sm"
+          class="pi text-xs"
           :class="{
             'pi-sort-alt': column.field !== teamsStore.sortColumn,
             'pi-arrow-down':
@@ -160,10 +157,7 @@ const sortTeams = (field: keyof team) => {
   position: sticky;
   top: 0;
   background: #1e1e1e;
-}
-
-.header-row > .table-cell {
-  font-weight: bold;
+  z-index: 10;
 }
 
 .grid > div:nth-child(2) {

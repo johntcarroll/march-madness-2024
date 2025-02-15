@@ -1,53 +1,7 @@
-body {
-  --border-color: rgba(255, 255, 255, 0.12);
-}
-#app,
-.p-component {
-  font-family: "IBM Plex Sans", sans-serif !important;
-  font-weight: 300 !important;
-  font-style: normal !important;
-}
-
-ul.p-submenu-list > li.p-menuitem > div.p-menuitem-content > .p-menuitem-link {
-  padding: 0.4rem 0.4rem;
-}
-
-div.p-menuitem-content > a {
-  text-transform: uppercase;
-  font-family: "IBM Plex Sans", sans-serif;
-  font-weight: 100;
-  font-style: normal;
-}
-
-.bordered {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--border-radius);
-}
-
-.background-filled {
-  background-color: #1e1e1e;
-}
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-}
-
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
-}
-
 h1,
 h2,
 h3,
-h4,
-.h1,
-.h2,
-.h3,
-.h4 {
+h4 {
   text-transform: uppercase;
   font-family: "IBM Plex Sans", sans-serif;
   font-weight: 100;

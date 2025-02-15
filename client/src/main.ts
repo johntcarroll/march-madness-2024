@@ -10,11 +10,11 @@ import ListTeams from "./pages/ListTeams.vue";
 import TeamDashboard from "./pages/TeamDashboard.vue";
 import { createPinia } from "pinia";
 
-import "./assets/main.css";
 import "primevue/resources/themes/md-dark-indigo/theme.css";
 import "primevue/resources/primevue.min.css";
 import "primeicons/primeicons.css";
 import "primeflex/primeflex.css";
+import "./assets/main.css";
 
 const routes = [
   { path: "/", component: ViewBracket },
